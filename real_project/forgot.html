@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reset Password - Secure Vault</title>
+    <link rel="stylesheet" href="style.css"> <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+</head>
+<body style="display:flex; justify-content:center; align-items:center; height:100vh; background:#f0f2f5;">
+
+    <div class="login-container" style="background:white; padding:40px; border-radius:10px; width:400px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+        <h2><i class="fa-solid fa-key"></i> Reset Password</h2>
+        <p style="color:red; font-size:12px; margin-bottom:20px;">
+            ⚠️ Warning: Resetting your password will <b>DELETE ALL FILES</b> in your vault. 
+            (Zero-Knowledge Encryption prevents recovering old data).
+        </p>
+
+        <div id="step1">
+            <input type="email" id="resetEmail" placeholder="Enter your email" style="width:100%; padding:10px; margin-bottom:10px;">
+            <button onclick="sendCode()" style="width:100%; padding:10px; background:blue; color:white; border:none; cursor:pointer;">Send Verification Code</button>
+        </div>
+
+        <div id="step2" style="display:none;">
+            <input type="text" id="resetCode" placeholder="Enter 6-digit Code" style="width:100%; padding:10px; margin-bottom:10px;">
+            <input type="password" id="newPassword" placeholder="New Password" style="width:100%; padding:10px; margin-bottom:10px;">
+            <button onclick="resetAccount()" style="width:100%; padding:10px; background:red; color:white; border:none; cursor:pointer;">Reset Account</button>
+        </div>
+        
+        <p style="margin-top:15px;"><a href="login.html">Back to Login</a></p>
+    </div>
+
+    <script src="cryptography.js"></script> 
+    <script>
+        let userEmail = "";
+
+        async function sendCode() {
+            userEmail = document.getElementById("resetEmail").value;
+            if(!userEmail) return alert("Enter email");
+
+            const res = await fetch("http://localhost:5000/api/forgot-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: userEmail })
+            });
+            
+            const data = await res.json();
+            if(res.ok) {
+                alert("Code sent! (Check your Backend Terminal)");
+                document.getElementById("step1").style.display = "none";
+                document.getElementById("step2").style.display = "block";
+            } else {
+                alert(data.message);
+            }
+        }
+
+        async function resetAccount() {
+            const code = document.getElementById("resetCode").value;
+            const password = document.getElementById("newPassword").value;
+            if(!code || !password) return alert("Fill all fields");
+
+            // 1. Generate NEW Key Pair
+            const { publicKey, privateKey } = await generateKeyPair();
+            const encryptedPrivateKey = await encryptPrivateKey(privateKey, password);
+
+            // 2. Send to Backend
+            const res = await fetch("http://localhost:5000/api/reset-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: userEmail,
+                    token: code,
+                    newPassword: password,
+                    newPublicKey: publicKey,
+                    newEncryptedPrivateKey: JSON.stringify(encryptedPrivateKey)
+                })
+            });
+
+            const data = await res.json();
+            if(res.ok) {
+                alert("✅ Success! Account reset. Please login with your new password.");
+                window.location.href = "login.html";
+            } else {
+                alert("Error: " + data.message);
+            }
+        }
+    </script>
+</body>
+</html>

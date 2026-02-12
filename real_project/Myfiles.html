@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<link rel="stylesheet" href="./Myfiles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+<body>
+    <div class="container">
+    <div class="sidebar">
+            <div class="headerr">
+            <img src="./new image1.png" alt="secure vault photo" width="90px" height="90px" style="box-sizing: content-box; margin-top: 40px;" >
+            <h2 style="font-size: 30px;">Secure Vault</h2>
+            </div>
+            <br>
+           <div class="sidecontent">
+            <nav>
+               
+               <button id="navMyFiles" class="same"> <i class="fa-solid fa-folder" id="i1" ></i>My Files</button>
+               <br>
+               <br>
+               
+               <button id="navEncrypt" class="same"><i class="fa-solid fa-lock" id="i2"></i>Encrypt Data</button>
+               <br>
+               <br>
+              
+               <button  id="navActivity" class="same"><i class="fa-solid fa-chart-line" id="i3" ></i>Activity Logs</button>
+               <br>
+               <br>
+               
+               <button id="navSettings" class="same"><i class="fa-solid fa-gear" id="i4" ></i>Settings</button>
+               <br>
+               <br>
+               
+               <button id="logoutBtn" class="same"> <i class="fa-solid fa-right-from-bracket" id="i5" ></i>Logout</button>
+               <br>
+               <br>
+             
+            </nav>
+              
+           </div>
+        </div>
+
+
+        <div class="main">
+          <div class="top">
+            <h1><i class="fa-solid fa-folder"></i>My Files</h1>
+            <p>View and Manage your encrypted files below</p>
+            <input id="searchInput" type="search"  placeholder="Search..">
+
+          </div>
+           <div class="down">
+  <table class="files-table">
+    <thead>
+      <tr>
+        <th><i class="fa-regular fa-file"></i> Name</th>
+        <th>Size</th>
+        <th>Encrypted On</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="fileTableBody"></tbody>
+  </table>
+</div>
+          
+
+
+        </div>
+      </div>
+      <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+      <script src="./Myfiles.js"></script>
+      
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<link rel="stylesheet" href="./dashboard.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+<body>
+      <div class="container">
+        <div class="sidebar">
+            <div class="headerr">
+            <img src="./new image1.png" alt="secure vault photo" width="90px" height="90px" style="box-sizing: content-box; margin-top: 40px;" >
+            <h2 style="font-size: 30px;">Secure Vault</h2>
+            </div>
+            <br>
+           <div class="sidecontent">
+            <nav>
+               
+               <button id="navMyFiles"  class="same"> <i class="fa-solid fa-folder" id="i1" ></i>My Files</button>
+               <br>
+               <br>
+               
+               <button id="navEncrypt" class="same"><i class="fa-solid fa-lock" id="i2"></i>Encrypt Data</button>
+               <br>
+               <br>
+              
+               <button id="navActivity" class="same"><i class="fa-solid fa-chart-line" id="i3" ></i>Activity Logs</button>
+               <br>
+               <br>
+               
+               <button  id="navSettings" class="same"><i class="fa-solid fa-gear" id="i4" ></i>Settings</button>
+               <br>
+               <br>
+               
+               <button id="logoutBtn" class="same"> <i class="fa-solid fa-right-from-bracket" id="i5" ></i>Logout</button>
+               <br>
+               <br>
+             
+            </nav>
+              
+           </div>
+        </div>
+        <div class="rightside">
+           <div class="top" >
+
+             <button class="topleft">
+                 <i class="fa-solid fa-bell" style="color: grey; font-size: 20px;"></i>
+                  <h2 style="display: inline;">Welcome, Shubham</h2>
+             </button>
+
+             <div class="topright">
+               <i class="fa-solid fa-magnifying-glass" style="font-size: 14px;"></i>
+               <input type="search" name="" id="Search" placeholder="Search"  >
+               <i class="fa-solid fa-user" style="font-size: 20px;"></i>
+             </div>
+
+           </div> 
+        <div class="stats-container">
+  <div class="box box1">
+    <p>Total Files Stored</p>
+    <h4>0</h4>
+  </div>
+
+  <div class="box box2">
+    <p>Storage Used</p>
+    <h4 id="storageText">0 GB / 200 GB</h4>
+    <div class="progress-bar">
+      <div id="storageBar"></div>
+    </div>
+  </div>
+
+  <div class="box box3">
+    <p>Last Login</p>
+    <h4 id="lastLoginText">Loading...</h4>
+  </div>
+</div>
+               
+            <div class="recent_act">
+                <h3 style="font-size:25px;">Recent Activity</h3> 
+
+                <div class="just_recent">
+                 <div>
+                  <i class="fa-solid fa-clock"></i>
+                 <span>You uploaded a file</span>
+                 </div>
+                 <div>
+                  <span>Just now</span>
+                  <i class="fa-solid fa-angle-right"></i>
+                 </div>
+                </div>
+
+                <div class="just_recent">
+                  <div>
+                 <i class="fa-solid fa-clock"></i>
+                 <span>Accessed your vault</span>
+                  </div>
+                  <div>
+                     <span>2 hours ago</span>
+                      <i class="fa-solid fa-angle-right"></i>
+                  </div>
+                </div>
+                
+                <div class="just_recent">
+                 <div>
+                 <i class="fa-solid fa-clock"></i>
+                  <span>You deleted a file</span>
+                 </div>
+                 <div>
+                      <span>Yesterday</span>
+                      <i class="fa-solid fa-angle-right"></i>
+                 </div>
+                </div>
+            </div>
+
+             <div class="Vault_pre">
+               <h3 style="font-size:25px;">Vault Preview</h3>
+               <div class="images">
+              
+                <i class="fa-solid fa-file-pdf space" style="color:#e63946; font-size: 100px; " ></i>
+               
+                
+               <i class="fa-solid fa-file-word space" style="color:#1d4ed8; font-size: 100px; "></i>
+               
+                 
+                <i class="fa-solid fa-file-image space" style="color:#0284c7;  font-size: 100px;"></i>
+                  
+               </div>
+             </div> 
+                
+        </div>
+      </div>
+      <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+      
+      <script src="./dashboard.js"></script>
+<script>
+  const socket = io("http://localhost:5000");
+
+  socket.on("connect", () => {
+    console.log("✅ Connected to real-time updates");
+  });
+
+  // When a file is uploaded
+  socket.on("fileUploaded", () => {
+    console.log("📥 File upload detected, refreshing dashboard...");
+    showToast("📂 New file added!");
+    refreshDashboard();
+  });
+
+  // When a file is deleted
+  socket.on("fileDeleted", () => {
+    console.log("🗑️ File deletion detected, refreshing dashboard...");
+    showToast("🗑️ File deleted!");
+    refreshDashboard();
+  });
+
+  async function refreshDashboard() {
+  const email = sessionStorage.getItem("vault_email");
+  if (!email) return;
+
+  try {
+    // Fetch stats from backend
+    const response = await fetch(`http://localhost:5000/api/dashboard/${email}`);
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || "Failed to fetch dashboard data");
+
+    // ✅ Update dashboard numbers with real values
+    document.querySelector(".box1 h4").textContent = data.totalFiles;
+    document.querySelector(".box2 h4").textContent = `${data.totalMB.toFixed(2)} GB / 200 GB`;
+    document.querySelector(".box3 h4").textContent = data.lastLogin;
+
+    // ✅ Update activity section visually
+    const activityBox = document.querySelector(".recent_act");
+    const newLog = document.createElement("div");
+    newLog.className = "just_recent";
+    newLog.innerHTML = `
+      <div><i class="fa-solid fa-database"></i> <span>Dashboard updated</span></div>
+      <div><span>${new Date().toLocaleTimeString()}</span><i class="fa-solid fa-angle-right"></i></div>`;
+    activityBox.prepend(newLog);
+  } catch (err) {
+    console.error("❌ Error updating dashboard:", err);
+  }
+}
+
+  function showToast(message) {
+    const toast = document.createElement("div");
+    toast.textContent = message;
+    toast.style.position = "fixed";
+    toast.style.bottom = "20px";
+    toast.style.right = "20px";
+    toast.style.background = "#333";
+    toast.style.color = "#fff";
+    toast.style.padding = "10px 15px";
+    toast.style.borderRadius = "10px";
+    toast.style.opacity = "0.9";
+    toast.style.zIndex = "9999";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+</script>
+</body>
+</html>

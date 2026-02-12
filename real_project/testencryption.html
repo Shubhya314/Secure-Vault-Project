@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 Encryption Test - Find the Bug</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+        }
+        .result {
+            background: #000;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #0f0;
+        }
+        .error {
+            border-left-color: #f00;
+            color: #f00;
+        }
+        .success {
+            border-left-color: #0f0;
+            color: #0f0;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0d0;
+        }
+        #output {
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 ENCRYPTION DIAGNOSTIC TOOL</h1>
+    <p>This will test if your encryption keys work properly</p>
+    
+    <button onclick="runFullTest()">🚀 Run Complete Test</button>
+    <button onclick="clearOutput()">🗑️ Clear</button>
+    
+    <div id="output"></div>
+
+    <script src="cryptography.js"></script>
+    <script>
+        let output = document.getElementById('output');
+        
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = msg;
+            output.appendChild(div);
+            console.log(msg);
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+        
+        async function runFullTest() {
+            clearOutput();
+            log('==========================================');
+            log('🔍 STARTING ENCRYPTION DIAGNOSTIC');
+            log('==========================================\n');
+            
+            try {
+                // TEST 1: Check Session Storage
+                log('TEST 1: Checking Session Storage...');
+                const email = sessionStorage.getItem("vault_email");
+                const privateKeyB64 = sessionStorage.getItem("vault_privateKey");
+                const publicKeyB64 = sessionStorage.getItem("vault_publicKey");
+                
+                if (!email) {
+                    log('❌ No email in session - Please log in first!', 'error');
+                    return;
+                }
+                if (!privateKeyB64) {
+                    log('❌ No private key in session - Please log in first!', 'error');
+                    return;
+                }
+                if (!publicKeyB64) {
+                    log('❌ No public key in session - Please log in first!', 'error');
+                    return;
+                }
+                
+                log(`✅ Email: ${email}`, 'success');
+                log(`✅ Private Key: ${privateKeyB64.substring(0, 50)}...`, 'success');
+                log(`✅ Public Key: ${publicKeyB64.substring(0, 50)}...`, 'success');
+                
+                // TEST 2: Import Keys
+                log('\nTEST 2: Importing RSA Keys...');
+                
+                // Import private key
+                const privateKeyBuffer = base64ToArrayBuffer(privateKeyB64);
+                const privateKey = await crypto.subtle.importKey(
+                    "pkcs8",
+                    privateKeyBuffer,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    true,
+                    ["decrypt"]
+                );
+                log('✅ Private key imported successfully', 'success');
+                
+                // Import public key
+                const publicKeyBuffer = base64ToArrayBuffer(publicKeyB64);
+                const publicKey = await crypto.subtle.importKey(
+                    "spki",
+                    publicKeyBuffer,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    true,
+                    ["encrypt"]
+                );
+                log('✅ Public key imported successfully', 'success');
+                
+                // TEST 3: Test Encrypt/Decrypt Cycle
+                log('\nTEST 3: Testing RSA Encrypt/Decrypt...');
+                const testMessage = "Hello Secure Vault!";
+                const testData = new TextEncoder().encode(testMessage);
+                
+                const encrypted = await crypto.subtle.encrypt(
+                    { name: "RSA-OAEP" },
+                    publicKey,
+                    testData
+                );
+                log('✅ Test data encrypted', 'success');
+                
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: "RSA-OAEP" },
+                    privateKey,
+                    encrypted
+                );
+                const decryptedMessage = new TextDecoder().decode(decrypted);
+                
+                if (decryptedMessage === testMessage) {
+                    log(`✅ Decryption WORKS! Got: "${decryptedMessage}"`, 'success');
+                } else {
+                    log(`❌ Decryption FAILED! Expected: "${testMessage}", Got: "${decryptedMessage}"`, 'error');
+                    return;
+                }
+                
+                // TEST 4: Test AES Key Generation and Encryption
+                log('\nTEST 4: Testing AES Key Generation...');
+                const aesKey = await crypto.subtle.generateKey(
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                log('✅ AES key generated', 'success');
+                
+                // Export and encrypt AES key
+                const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+                const encryptedAESKey = await crypto.subtle.encrypt(
+                    { name: "RSA-OAEP" },
+                    publicKey,
+                    rawAesKey
+                );
+                log('✅ AES key encrypted with RSA public key', 'success');
+                
+                // Decrypt AES key back
+                const decryptedAESKeyBuffer = await crypto.subtle.decrypt(
+                    { name: "RSA-OAEP" },
+                    privateKey,
+                    encryptedAESKey
+                );
+                log('✅ AES key decrypted with RSA private key', 'success');
+                
+                const recoveredAESKey = await crypto.subtle.importKey(
+                    "raw",
+                    decryptedAESKeyBuffer,
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                log('✅ AES key re-imported successfully', 'success');
+                
+                // TEST 5: Test File Chunk Encryption
+                log('\nTEST 5: Testing File Chunk Encryption...');
+                const testFileData = new Uint8Array(1000); // 1KB test
+                crypto.getRandomValues(testFileData);
+                
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encryptedChunk = await crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv },
+                    aesKey,
+                    testFileData
+                );
+                log('✅ File chunk encrypted', 'success');
+                
+                // Combine IV + encrypted data (mimics upload format)
+                const packet = new Uint8Array(12 + encryptedChunk.byteLength);
+                packet.set(iv, 0);
+                packet.set(new Uint8Array(encryptedChunk), 12);
+                log(`✅ Packet created: IV (12 bytes) + Data (${encryptedChunk.byteLength} bytes)`, 'success');
+                
+                // TEST 6: Test Decryption (mimics download)
+                log('\nTEST 6: Testing File Chunk Decryption...');
+                const receivedIV = packet.slice(0, 12);
+                const receivedEncrypted = packet.slice(12);
+                
+                const decryptedChunk = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: receivedIV, tagLength: 128 },
+                    recoveredAESKey,
+                    receivedEncrypted
+                );
+                log('✅ File chunk decrypted successfully', 'success');
+                
+                // Verify data matches
+                const decryptedArray = new Uint8Array(decryptedChunk);
+                let match = true;
+                for (let i = 0; i < 100; i++) {
+                    if (testFileData[i] !== decryptedArray[i]) {
+                        match = false;
+                        break;
+                    }
+                }
+                
+                if (match) {
+                    log('✅ Decrypted data MATCHES original!', 'success');
+                } else {
+                    log('❌ Decrypted data DOES NOT MATCH!', 'error');
+                }
+                
+                // FINAL RESULT
+                log('\n==========================================');
+                log('🎉 ALL TESTS PASSED!', 'success');
+                log('==========================================');
+                log('\n✅ Your encryption system is working correctly!');
+                log('✅ Keys are valid and match each other');
+                log('\n💡 If files still fail to decrypt:');
+                log('   1. Make sure you DELETED old files from database');
+                log('   2. Make sure you uploaded a FRESH file after logging in');
+                log('   3. Check browser console for the actual error');
+                
+            } catch (err) {
+                log('\n==========================================', 'error');
+                log('❌ TEST FAILED!', 'error');
+                log('==========================================', 'error');
+                log(`\nError: ${err.message}`, 'error');
+                log(`\nStack: ${err.stack}`, 'error');
+                
+                log('\n🔍 DIAGNOSIS:', 'error');
+                if (err.message.includes('OperationError')) {
+                    log('   → Your keys DO NOT MATCH!', 'error');
+                    log('   → Solution: Create a NEW account or reset password', 'error');
+                } else if (err.message.includes('DataError')) {
+                    log('   → Invalid key format', 'error');
+                    log('   → Solution: Check login.js key export format', 'error');
+                } else {
+                    log('   → Unknown error - check console', 'error');
+                }
+            }
+        }
+        
+        // Helper functions
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+    </script>
+</body>
+</html>

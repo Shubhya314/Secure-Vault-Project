@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encrypt Data - Secure Vault</title>
+  <link rel="stylesheet" href="./dashencrypt.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- Sidebar -->
+    <div class="sidebar" >
+            <div class="headerr">
+            <img src="./new image1.png" alt="secure vault photo" width="90px" height="90px" style="box-sizing: content-box; margin-top: 40px;" >
+          
+            <h2 style="font-size: 30px;">Secure Vault</h2>
+            </div>
+            <br>
+           <div class="sidecontent">
+            <nav>
+               
+               <button class="same"> <i class="fa-solid fa-folder" id="i1" ></i> My Files</button>
+               <br>
+               <br>
+               
+               <button class="same"><i class="fa-solid fa-lock" id="i2"></i> Encrypt Data</button>
+               <br>
+               <br>
+              
+               <button class="same"><i class="fa-solid fa-chart-line" id="i3" ></i> Activity Logs</button>
+               <br>
+               <br>
+               
+               <button class="same"><i class="fa-solid fa-gear" id="i4" ></i> Settings</button>
+               <br>
+               <br>
+               
+               <button class="same"> <i class="fa-solid fa-right-from-bracket" id="i5" ></i> Logout</button>
+               <br>
+               <br>
+                <button id="backToDashboard" class="same">
+  <i class="fa-solid fa-arrow-left"></i> Dashboard
+</button>
+            </nav>
+              
+           </div>
+        </div>
+
+    <!-- Main Section -->
+    <div class="main">
+      <div class="header">
+        <h1><i class="fa-solid fa-lock"></i> Encrypt Your Data</h1>
+        <p>Securely encrypt your files or text before storing them in your vault.</p>
+      </div>
+
+      <div class="encrypt-box">
+        <div class="input-section">
+          <label for="encryptText" style="font-size:18px;">Enter Text to Encrypt</label>
+          <br>
+         
+          <textarea id="encryptText" placeholder="Type your sensitive text here..."></textarea>
+
+          
+            <div class="or">OR</div>
+         
+
+         <label style="font-size:18px;">Upload a File to Encrypt :</label>
+<div id="dropZone" class="drop-zone">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <p>Drag & Drop file here or <span style="color:blue; cursor:pointer;">Browse</span></p>
+    <input type="file" id="encryptFile" accept="*/*" hidden>
+</div>
+<p id="fileNameDisplay" style="text-align: center; margin-top: 10px; color: green; font-weight: bold; min-height: 20px;"></p>
+        </div>
+
+        <button id="encryptBtn">
+            <i class="fa-solid fa-shield-halved"></i> 
+         <p>Encrypt Data</p>
+        </button>
+        <p id="encryptStatus"></p>
+      </div>
+
+      
+    </div>
+  </div>
+ 
+  <script src="dashencrypt.js"></script>
+  
+</body>
+</html>

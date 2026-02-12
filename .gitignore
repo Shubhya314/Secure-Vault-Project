@@ -1,0 +1,13 @@
+# Ignore backend dependencies
+backend/node_modules/
+
+# Ignore environment file
+backend/.env
+
+# Ignore uploaded files
+backend/uploads/
+backend/temp/
+
+# OS junk files
+.DS_Store
+Thumbs.db

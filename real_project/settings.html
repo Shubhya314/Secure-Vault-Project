@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - Secure Vault</title>
+    <link rel="stylesheet" href="./dashboard.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        .settings-container { padding: 40px; }
+        .mfa-section { background: white; padding: 20px; border-radius: 10px; max-width: 500px; }
+        .qr-box { text-align: center; margin: 20px 0; display: none; }
+        input { padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; margin-bottom: 10px; }
+        .btn { padding: 10px 20px; background: blue; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+    <div class="headerr">
+        <h2 style="color:white; margin-top:30px;">Secure Vault</h2>
+    </div>
+    <div class="sidecontent">
+        <nav>
+            <button id="themeToggleBtn" class="same" style="margin-bottom: 10px;">
+                <i class="fa-solid fa-moon"></i> <span id="themeText">Dark Mode</span>
+            </button>
+            <button onclick="location.href='dashboard.html'" class="same">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+        </nav>
+    </div>
+</div>
+
+        <div class="main settings-container">
+            <h1><i class="fa-solid fa-shield-halved"></i> Security Settings</h1>
+            <br>
+            
+            <div class="mfa-section">
+    <h3>Two-Factor Authentication</h3>
+    <p>Get a security code sent to your email every time you log in.</p>
+    <button id="mfaToggleBtn" style="padding: 10px 20px; cursor: pointer;">Enable Email MFA</button>
+</div>
+        </div>
+    </div>
+    <script src="settings.js"></script>
+</body>
+</html>

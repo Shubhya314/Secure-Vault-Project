@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Logs - Secure Vault</title>
+    <link rel="stylesheet" href="./activitylog.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="headerr">
+                <img src="./new image1.png" width="90px" height="90px" style="margin-top: 40px;">
+                <h2 style="font-size: 30px;">Secure Vault</h2>
+            </div>
+            <div class="sidecontent">
+                <nav>
+                    <button onclick="location.href='Myfiles.html'" class="same"><i class="fa-solid fa-folder"></i> My Files</button><br><br>
+                    <button onclick="location.href='dashencrypt.html'" class="same"><i class="fa-solid fa-lock"></i> Encrypt Data</button><br><br>
+                    <button class="same active-btn"><i class="fa-solid fa-chart-line"></i> Activity Logs</button><br><br>
+                    <button onclick="location.href='settings.html'" class="same"><i class="fa-solid fa-gear"></i> Settings</button><br><br>
+                    <button id="logoutBtn" class="same"><i class="fa-solid fa-right-from-bracket"></i> Logout</button><br><br>
+                    <button onclick="location.href='dashboard.html'" class="same"><i class="fa-solid fa-arrow-left"></i> Dashboard</button>
+                </nav>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="header">
+                <h1><i class="fa-solid fa-clock-rotate-left"></i> Security Audit Log</h1>
+                <p>Monitor logins and file actions. <span style="color:red">Suspicious IP? Change your password immediately.</span></p>
+            </div>
+      
+
+            <div class="header">
+  
+</div>
+
+<div class="charts-container" style="display: flex; gap: 20px; margin-bottom: 30px; margin-top: 20px;">
+    
+    <div style="background: white; padding: 20px; border-radius: 15px; width: 40%; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <h3 style="margin-bottom: 15px; color: #333;">Action Distribution</h3>
+        <canvas id="actionChart"></canvas>
+    </div>
+
+    <div style="background: white; padding: 20px; border-radius: 15px; width: 60%; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <h3 style="margin-bottom: 15px; color: #333;">Traffic Volume (Last 7 Days)</h3>
+        <canvas id="volumeChart"></canvas>
+    </div>
+
+</div>
+
+<div class="table-container">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Device / Browser</th>
+                            <th>IP Address</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                        <tr><td colspan="4">Loading logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="./activitylog.js"></script>
+</body>
+</html>

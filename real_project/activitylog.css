@@ -1,0 +1,30 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background-color: aliceblue; }
+
+.container { display: grid; grid-template-columns: 250px 1fr; height: 100vh; }
+
+/* Sidebar (Reused) */
+.sidebar { background-color: blue; color: white; border-radius: 0 30px 30px 0; height: 100vh; }
+.headerr { display: flex; flex-direction: column; align-items: center; height: 150px; justify-content: center; }
+.sidecontent { display: flex; justify-content: center; margin-top: 30px; }
+.same { width: 200px; height: 50px; background: blue; border: none; color: white; font-size: 18px; text-align: left; padding-left: 20px; cursor: pointer; border-radius: 10px; }
+.same:hover, .active-btn { box-shadow: inset 0 0 5px 3px rgba(0,0,0,0.2); }
+.same i { margin-right: 15px; }
+
+/* Main Area */
+.main { padding: 40px; overflow-y: auto; }
+.header h1 { color: #333; }
+.header p { color: #666; margin-top: 5px; font-size: 14px; }
+
+/* Table Styling */
+.table-container { margin-top: 30px; background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 15px; color: #555; background-color: #f8f9fa; border-bottom: 2px solid #eee; }
+td { padding: 15px; border-bottom: 1px solid #eee; color: #333; font-size: 15px; }
+tr:hover { background-color: #f1f5ff; }
+
+/* Icons & Colors */
+.icon-login { color: green; }
+.icon-upload { color: blue; }
+.icon-delete { color: red; }
+.device-info { font-size: 13px; color: #777; }
