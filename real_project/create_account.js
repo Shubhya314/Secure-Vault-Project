@@ -70,4 +70,43 @@ document.addEventListener("DOMContentLoaded", () => {
             signupBtn.disabled = false;
         }
     });
+
+    // ==========================================
+    // 🔒 PASSWORD STRENGTH METER (Additive — no existing logic changed)
+    // ==========================================
+    const strengthPassword = document.getElementById("signupPassword");
+    const strengthBar = document.getElementById("strengthBar");
+    const strengthText = document.getElementById("strengthText");
+
+    if (strengthPassword && strengthBar && strengthText) {
+        strengthPassword.addEventListener("input", () => {
+            const val = strengthPassword.value;
+            let score = 0;
+
+            if (val.length >= 6) score++;   // At least 6 chars
+            if (val.length >= 10) score++;  // 10+ chars is better
+            if (/[A-Z]/.test(val)) score++; // Has uppercase
+            if (/[a-z]/.test(val)) score++; // Has lowercase
+            if (/[0-9]/.test(val)) score++; // Has a number
+            if (/[^A-Za-z0-9]/.test(val)) score++; // Has special char (!@#$...)
+
+            // Map score to label + color
+            const levels = [
+                { label: "",             color: "transparent", width: "0%"   },
+                { label: "🔴 Very Weak", color: "#ef4444",     width: "15%"  },
+                { label: "🟠 Weak",      color: "#f97316",     width: "30%"  },
+                { label: "🟡 Fair",      color: "#eab308",     width: "50%"  },
+                { label: "🟢 Good",      color: "#22c55e",     width: "70%"  },
+                { label: "🟢 Strong",    color: "#16a34a",     width: "85%"  },
+                { label: "💪 Very Strong",color: "#15803d",     width: "100%" }
+            ];
+
+            const level = levels[score] || levels[6];
+
+            strengthBar.style.width = level.width;
+            strengthBar.style.background = level.color;
+            strengthText.textContent = val.length > 0 ? level.label : "";
+            strengthText.style.color = level.color;
+        });
+    }
 });
