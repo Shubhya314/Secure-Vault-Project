@@ -3,40 +3,17 @@
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    const email = sessionStorage.getItem("vault_email") || localStorage.getItem("vault_email");
+    // ✅ Auth check + Navigation (from auth.js)
+    if (!checkAuth()) return;
+    setupNavigation();
+
+    const email = getEmail();
     const privateKeyBase64 = sessionStorage.getItem("vault_privateKey") || localStorage.getItem("vault_privateKey");
     const publicKey = sessionStorage.getItem("vault_publicKey") || localStorage.getItem("vault_publicKey");
     
     const fileTableBody = document.getElementById("fileTableBody");
     const searchInput = document.getElementById("searchInput");
-    const logoutBtn = document.getElementById("logoutBtn");
 
-    // Navigation
-    const navMyFiles = document.getElementById("navMyFiles");
-    const navEncrypt = document.getElementById("navEncrypt");
-    const navActivity = document.getElementById("navActivity");
-    const navSettings = document.getElementById("navSettings");
-
-    if (navMyFiles) navMyFiles.addEventListener("click", () => window.location.href = "Myfiles.html");
-    if (navEncrypt) navEncrypt.addEventListener("click", () => window.location.href = "dashencrypt.html");
-    if (navActivity) navActivity.addEventListener("click", () => window.location.href = "activitylog.html");
-    if (navSettings) navSettings.addEventListener("click", () => window.location.href = "settings.html");
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            if (confirm("Log out?")) {
-                sessionStorage.clear();
-                localStorage.clear();
-                window.location.href = "login.html";
-            }
-        });
-    }
-
-    if (!email) {
-        window.location.href = "login.html";
-        return;
-    }
-    
     if (!privateKeyBase64) {
         alert("Session expired. Please login again.");
         window.location.href = "login.html";
@@ -283,7 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadFiles() {
         try {
-            const res = await fetch(`http://localhost:5000/api/files/${email}`);
+        const res = await authFetch(`http://localhost:5000/api/files/${email}`);
+            if (!res) return;
             const files = await res.json();
 
             fileTableBody.innerHTML = "";
@@ -347,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // VIEW FILE
     window.requestViewAccess = async function(fileName) {
         try {
-            const res = await fetch("http://localhost:5000/api/file/request-access", {
+            const res = await authFetch("http://localhost:5000/api/file/request-access", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, fileName })
@@ -376,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateLoadingMessage("Downloading...");
 
         // 1️⃣ Fetch encrypted stream
-        const streamRes = await fetch("http://localhost:5000/api/file/get-encrypted-stream", {
+        const streamRes = await authFetch("http://localhost:5000/api/file/get-encrypted-stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, fileName, otp })
@@ -442,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // DOWNLOAD FILE
     window.requestDownloadAccess = async function(fileName) {
         try {
-            const res = await fetch("http://localhost:5000/api/file/request-access", {
+            const res = await authFetch("http://localhost:5000/api/file/request-access", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, fileName })
@@ -469,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
         // ✅ FETCH ENCRYPTED FILE
-        const streamRes = await fetch("http://localhost:5000/api/file/get-encrypted-stream", {
+        const streamRes = await authFetch("http://localhost:5000/api/file/get-encrypted-stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, fileName, otp })
@@ -526,7 +504,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!confirm(`⚠️ Delete "${fileName}"? This cannot be undone!`)) return;
 
         try {
-            const res = await fetch("http://localhost:5000/api/file/request-access", {
+            const res = await authFetch("http://localhost:5000/api/file/request-access", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, fileName })
@@ -550,14 +528,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function deleteFileWithOTP(fileName, otp) {
         try {
-            const verifyRes = await fetch("http://localhost:5000/api/file/verify-access", {
+            const verifyRes = await authFetch("http://localhost:5000/api/file/verify-access", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, fileName, otp })
             });
 
             if (verifyRes.ok) {
-                const deleteRes = await fetch("http://localhost:5000/api/deleteFile", {
+                const deleteRes = await authFetch("http://localhost:5000/api/deleteFile", {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, fileName })
@@ -602,5 +580,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    loadFiles();
+    // Initial load then hide loader
+    loadFiles().then(() => hidePageLoader());
 });

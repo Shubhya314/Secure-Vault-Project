@@ -1,9 +1,14 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const mfaBtn = document.getElementById("mfaToggleBtn"); // Ensure this ID matches your HTML
-    const email = sessionStorage.getItem("vault_email");
+    // ✅ Auth check + Navigation (from auth.js)
+    if (!checkAuth()) return;
+    setupNavigation();
+
+    const mfaBtn = document.getElementById("mfaToggleBtn");
+    const email = getEmail();
 
     // Fetch initial status to set button color
-    const statusRes = await fetch(`http://localhost:5000/api/mfa/status/${email}`);
+    const statusRes = await authFetch(`http://localhost:5000/api/mfa/status/${email}`);
+    if (!statusRes) return;
     const statusData = await statusRes.json();
     let isEnabled = statusData.mfaEnabled;
 
@@ -13,15 +18,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     updateUI(isEnabled);
 
+    // ✅ Hide loader after settings loaded
+    hidePageLoader();
+
     mfaBtn.addEventListener("click", async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/mfa/toggle", {
+            const res = await authFetch("http://localhost:5000/api/mfa/toggle", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: email, enabled: !isEnabled })
             });
 
-            if (res.ok) {
+            if (res && res.ok) {
                 isEnabled = !isEnabled;
                 updateUI(isEnabled);
                 alert(`MFA ${isEnabled ? 'Enabled' : 'Disabled'}!`);
@@ -33,4 +41,3 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 });
-

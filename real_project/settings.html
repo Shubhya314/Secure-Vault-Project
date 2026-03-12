@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Settings - Secure Vault</title>
-    <link rel="stylesheet" href="./dashboard.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <link rel="stylesheet" href="./dashboard.css">
+    <link rel="stylesheet" href="./loader.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
         .settings-container { padding: 40px; }
         .mfa-section { background: white; padding: 20px; border-radius: 10px; max-width: 500px; }
@@ -13,34 +15,43 @@
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="pageLoader">
+        <div class="loader-logo">🔒 Secure Vault</div>
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Loading settings...</div>
+    </div>
+
     <div class="container">
         <div class="sidebar">
-    <div class="headerr">
-        <h2 style="color:white; margin-top:30px;">Secure Vault</h2>
-    </div>
-    <div class="sidecontent">
-        <nav>
-            <button id="themeToggleBtn" class="same" style="margin-bottom: 10px;">
-                <i class="fa-solid fa-moon"></i> <span id="themeText">Dark Mode</span>
-            </button>
-            <button onclick="location.href='dashboard.html'" class="same">
-                <i class="fa-solid fa-arrow-left"></i> Back
-            </button>
-        </nav>
-    </div>
-</div>
+            <div class="headerr">
+                <img src="./new image1.png" alt="secure vault photo" width="90px" height="90px" style="box-sizing: content-box; margin-top: 40px;">
+                <h2 style="color:white; margin-top:10px;">Secure Vault</h2>
+            </div>
+            <div class="sidecontent">
+                <nav>
+                    <button id="navMyFiles" class="same"><i class="fa-solid fa-folder"></i> My Files</button><br><br>
+                    <button id="navEncrypt" class="same"><i class="fa-solid fa-lock"></i> Encrypt Data</button><br><br>
+                    <button id="navActivity" class="same"><i class="fa-solid fa-chart-line"></i> Activity Logs</button><br><br>
+                    <button id="navSettings" class="same" style="background: rgba(255,255,255,0.15);"><i class="fa-solid fa-gear"></i> Settings</button><br><br>
+                    <button id="logoutBtn" class="same"><i class="fa-solid fa-right-from-bracket"></i> Logout</button><br><br>
+                    <button id="backToDashboard" class="same"><i class="fa-solid fa-arrow-left"></i> Dashboard</button>
+                </nav>
+            </div>
+        </div>
 
         <div class="main settings-container">
             <h1><i class="fa-solid fa-shield-halved"></i> Security Settings</h1>
             <br>
             
             <div class="mfa-section">
-    <h3>Two-Factor Authentication</h3>
-    <p>Get a security code sent to your email every time you log in.</p>
-    <button id="mfaToggleBtn" style="padding: 10px 20px; cursor: pointer;">Enable Email MFA</button>
-</div>
+                <h3>Two-Factor Authentication</h3>
+                <p>Get a security code sent to your email every time you log in.</p>
+                <button id="mfaToggleBtn" style="padding: 10px 20px; cursor: pointer;">Enable Email MFA</button>
+            </div>
         </div>
     </div>
+    <script src="./auth.js"></script>
     <script src="settings.js"></script>
 </body>
 </html>

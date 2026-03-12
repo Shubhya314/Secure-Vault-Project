@@ -1,27 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ Dashboard JS Loaded");
 
-  // --- Sidebar Logic ---
-  const navMyFiles = document.getElementById("navMyFiles");
-  const navEncrypt = document.getElementById("navEncrypt");
-  const navActivity = document.getElementById("navActivity");
-  const navSettings = document.getElementById("navSettings");
-  const logoutBtn = document.getElementById("logoutBtn");
+  // ✅ Auth check — redirects to login if no token
+  if (!checkAuth()) return;
 
-  if (navMyFiles) navMyFiles.addEventListener("click", () => window.location.href = "Myfiles.html");
-  if (navEncrypt) navEncrypt.addEventListener("click", () => window.location.href = "dashencrypt.html");
-  if (navActivity) navActivity.addEventListener("click", () => window.location.href = "activitylog.html");
-  if (navSettings) navSettings.addEventListener("click", () => window.location.href = "settings.html");
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      if (confirm("Log out?")) {
-        sessionStorage.clear();
-        localStorage.clear();
-        window.location.href = "login.html";
-      }
-    });
-  }
+  // ✅ Setup sidebar navigation (from auth.js)
+  setupNavigation();
 
   // --- Dashboard Data Elements ---
   const totalFilesBox = document.querySelector(".box1 h4");
@@ -29,22 +13,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const storageBar = document.getElementById("storageBar");
   const lastLoginText = document.getElementById("lastLoginText");
   const recentActivity = document.querySelector(".recent_act");
+  const welcomeName = document.getElementById("welcomeName");
 
-  // --- Check Session ---
-  const email = sessionStorage.getItem("vault_email");
-  if (!email) {
-    // If no email is found, redirect to login
-    window.location.href = "login.html";
-    return;
+  // --- Set Welcome Name from Email ---
+  const email = getEmail();
+  if (welcomeName && email) {
+    // Extract name part from email (e.g. "shubham" from "shubham@gmail.com")
+    welcomeName.textContent = email.split("@")[0];
   }
 
   // === 1. Load Storage & Login Info ===
   async function loadDashboardData() {
     try {
-      // Fetch from Server
-      const response = await fetch(`http://localhost:5000/api/dashboard/${email}`);
-      
-      // If server is unreachable, this throws an error
+      // ✅ Using authFetch instead of fetch — automatically adds JWT token
+      const response = await authFetch(`http://localhost:5000/api/dashboard/${email}`);
+      if (!response) return; // authFetch returns null if redirected to login
+
       if (!response.ok) throw new Error("Server Error");
 
       const data = await response.json();
@@ -64,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if(storageBar) {
         const percent = Math.min((usedMB / (maxGB * 1024)) * 100, 100);
         storageBar.style.width = `${percent}%`;
-        // Color coding: Green -> Yellow -> Red
         storageBar.style.background = percent < 60 ? "#22c55e" : (percent < 85 ? "#eab308" : "#ef4444");
       }
 
@@ -72,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if(lastLoginText) {
          if (data.lastLogin) {
              const d = new Date(data.lastLogin);
-             // Format: DD/MM/YYYY, HH:MM
              lastLoginText.textContent = d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
          } else {
              lastLoginText.textContent = "First Login";
@@ -86,30 +68,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // === 2. Load Recent Activity (Fixed URL) ===
+  // === 2. Load Recent Activity ===
   async function loadRecentActivity() {
     try {
       if (!recentActivity) return;
 
-      // ✅ FIX: The URL must be /api/activity/all/ to match server.js
-      const res = await fetch(`http://localhost:5000/api/activity/all/${email}`);
+      // ✅ Using authFetch instead of fetch
+      const res = await authFetch(`http://localhost:5000/api/activity/all/${email}`);
+      if (!res) return;
       
       if (!res.ok) throw new Error("Fetch failed");
       const data = await res.json();
 
-      recentActivity.innerHTML = ""; // Clear "Loading..." text
+      recentActivity.innerHTML = "";
 
       if (!Array.isArray(data) || data.length === 0) {
         recentActivity.innerHTML = `<p style="color:grey; text-align:center;">No recent activity.</p>`;
         return;
       }
 
-      // Create list items
       data.forEach(act => {
         const div = document.createElement("div");
         div.className = "just_recent";
         
-        // Handle timestamp (server now sends 'created_at' as 'timestamp')
         const time = act.timestamp ? new Date(act.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
         
         div.innerHTML = `
@@ -127,9 +108,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Initial Load
-  loadDashboardData();
-  loadRecentActivity();
+  // Initial Load — then hide the loading overlay
+  Promise.all([loadDashboardData(), loadRecentActivity()]).then(() => {
+    hidePageLoader(); // ✅ Hide loading overlay once data is loaded
+  });
 
   // Refresh data every 5 seconds (Live Updates)
   setInterval(() => {

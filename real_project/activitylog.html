@@ -4,10 +4,18 @@
     <meta charset="UTF-8">
     <title>Activity Logs - Secure Vault</title>
     <link rel="stylesheet" href="./activitylog.css">
+    <link rel="stylesheet" href="./loader.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="pageLoader">
+        <div class="loader-logo">🔒 Secure Vault</div>
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Loading activity logs...</div>
+    </div>
+
     <div class="container">
         <div class="sidebar">
             <div class="headerr">
@@ -70,6 +78,7 @@
         </div>
     </div>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="./auth.js"></script>
     <script src="./activitylog.js"></script>
 </body>
 </html>

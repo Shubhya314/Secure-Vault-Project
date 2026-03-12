@@ -27,6 +27,11 @@ async function importPublicKey(base64Key) {
 
 // ================== MAIN UI LOGIC ==================
 document.addEventListener("DOMContentLoaded", () => {
+    // ✅ Auth check + Navigation
+    if (!checkAuth()) return;
+    setupNavigation();
+    hidePageLoader();
+
     const encryptBtn = document.getElementById("encryptBtn");
     const textInput = document.getElementById("encryptText");
     const fileInput = document.getElementById("encryptFile");
@@ -125,8 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // 2. Encrypt AES Key with User's RSA Public Key
                 
-                const keyRes = await fetch(`http://localhost:5000/api/user/publickey/${email}`);
-if (!keyRes.ok) throw new Error("Failed to fetch public key");
+                const keyRes = await authFetch(`http://localhost:5000/api/user/publickey/${email}`);
+if (!keyRes || !keyRes.ok) throw new Error("Failed to fetch public key");
 
 const { publicKey } = await keyRes.json();
 
@@ -149,13 +154,13 @@ const encryptedAESKey = arrayBufferToBase64(encryptedAESKeyBuffer);
                 // ===============================================
                 status.textContent = "📡 Connecting to Server...";
                 
-                const initRes = await fetch("http://localhost:5000/api/upload/init", {
+                const initRes = await authFetch("http://localhost:5000/api/upload/init", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ fileName: file.name })
                 });
 
-                if (!initRes.ok) throw new Error("Failed to connect to server");
+                if (!initRes || !initRes.ok) throw new Error("Failed to connect to server");
                 const { serverFileName } = await initRes.json();
 
                 // ===============================================
@@ -191,7 +196,7 @@ packet.set(lengthBuffer, 12);       // Length
 packet.set(new Uint8Array(encryptedChunk), 16); // Ciphertext + Auth Tag
 
                     // 4. Upload Chunk
-                    const uploadRes = await fetch("http://localhost:5000/api/upload/chunk", {
+                    const uploadRes = await authFetch("http://localhost:5000/api/upload/chunk", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -200,7 +205,7 @@ packet.set(new Uint8Array(encryptedChunk), 16); // Ciphertext + Auth Tag
                         })
                     });
 
-                    if (!uploadRes.ok) throw new Error(`Chunk ${i+1} upload failed`);
+                    if (!uploadRes || !uploadRes.ok) throw new Error(`Chunk ${i+1} upload failed`);
 
                     // 5. Update UI
                     uploadedChunks++;
@@ -213,7 +218,7 @@ packet.set(new Uint8Array(encryptedChunk), 16); // Ciphertext + Auth Tag
                 // ===============================================
                 status.textContent = "💾 Saving...";
                 
-                const finalRes = await fetch("http://localhost:5000/api/upload/finalize", {
+                const finalRes = await authFetch("http://localhost:5000/api/upload/finalize", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -226,7 +231,7 @@ packet.set(new Uint8Array(encryptedChunk), 16); // Ciphertext + Auth Tag
                     })
                 });
 
-                if (!finalRes.ok) throw new Error("Failed to finalize upload");
+                if (!finalRes || !finalRes.ok) throw new Error("Failed to finalize upload");
 
                 // Success!
                 status.style.color = "green";

@@ -1,4 +1,5 @@
 import speakeasy from "speakeasy";
+import jwt from "jsonwebtoken";
 import QRCode from "qrcode";
 import express from "express";
 import cors from "cors";
@@ -63,6 +64,33 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
+
+// ✅ JWT Secret Key (used to sign/verify tokens)
+const JWT_SECRET = process.env.JWT_SECRET || "securevault_jwt_secret_key_2026";
+const JWT_EXPIRES_IN = "24h"; // Token valid for 24 hours
+
+// ✅ JWT Middleware — checks if user is logged in
+// Think of this as a "security guard" that checks your ticket before letting you in
+function authenticateToken(req, res, next) {
+    // 1. Read the token from the request header
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // "Bearer <token>" → extract <token>
+
+    // 2. No token? You're not logged in!
+    if (!token) {
+        return res.status(401).json({ message: "Access denied. Please login first." });
+    }
+
+    // 3. Verify the token is real and not expired
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({ message: "Session expired. Please login again." });
+        }
+        // 4. Token is valid! Attach user info to the request
+        req.user = decoded; // Contains { userId, email }
+        next(); // Let the request continue
+    });
+}
 
 // ✅ WebSocket Connection
 io.on("connection", (socket) => {
@@ -248,9 +276,17 @@ app.post("/api/login", (req, res) => {
             db.query("UPDATE users SET last_login = NOW() WHERE id = ?", [user.id]);
             logActivity(user.id, "Login Successful (MFA Disabled)", req);
 
+            // ✅ Generate JWT token (the "movie ticket")
+            const token = jwt.sign(
+                { userId: user.id, email: email },
+                JWT_SECRET,
+                { expiresIn: JWT_EXPIRES_IN }
+            );
+
             res.json({
                 message: "Success",
                 mfaRequired: false,
+                token: token,
                 publicKey: user.publicKey,
                 encryptedPrivateKey: user.encryptedPrivateKey
             });
@@ -279,9 +315,17 @@ app.post("/api/login/verify-mfa", (req, res) => {
         
         logActivity(user.id, "Login Successful (MFA Verified)", req);
 
+        // ✅ Generate JWT token after MFA verification
+        const token = jwt.sign(
+            { userId: user.id, email: email },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN }
+        );
+
         console.log(`✅ User ${email} verified MFA and logged in`);
         res.json({
             message: "Success",
+            token: token,
             publicKey: user.publicKey,
             encryptedPrivateKey: user.encryptedPrivateKey
         });
@@ -293,7 +337,7 @@ app.post("/api/login/verify-mfa", (req, res) => {
 // ==========================================
 
 // ✅ Toggle Email MFA ON/OFF
-app.post("/api/mfa/toggle", (req, res) => {
+app.post("/api/mfa/toggle", authenticateToken, (req, res) => {
     const { email, enabled } = req.body; 
     const status = enabled ? 1 : 0;
 
@@ -309,7 +353,7 @@ app.post("/api/mfa/toggle", (req, res) => {
 });
 
 // ✅ Get current MFA status
-app.get("/api/mfa/status/:email", (req, res) => {
+app.get("/api/mfa/status/:email", authenticateToken, (req, res) => {
     const { email } = req.params;
     db.query("SELECT mfa_enabled FROM users WHERE email = ?", [email], (err, results) => {
         if (err || !results.length) {
@@ -326,7 +370,7 @@ app.get("/api/mfa/status/:email", (req, res) => {
 const uploadSessions = {};
 
 // Step 1: Initialize Upload
-app.post("/api/upload/init", (req, res) => {
+app.post("/api/upload/init", authenticateToken, (req, res) => {
     const { fileName } = req.body;
     const serverFileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     uploadSessions[serverFileName] = { chunks: [], fileName };
@@ -336,7 +380,7 @@ app.post("/api/upload/init", (req, res) => {
 });
 
 // Step 2: Receive Chunks
-app.post("/api/upload/chunk", (req, res) => {
+app.post("/api/upload/chunk", authenticateToken, (req, res) => {
     const { serverFileName, chunkData } = req.body;
     
     if (!uploadSessions[serverFileName]) {
@@ -350,7 +394,7 @@ app.post("/api/upload/chunk", (req, res) => {
 });
 
 // Step 3: Finalize Upload
-app.post("/api/upload/finalize", (req, res) => {
+app.post("/api/upload/finalize", authenticateToken, (req, res) => {
     const { email, fileName, serverFileName, fileSize, encryptedAESKey, totalChunks } = req.body;
 
     if (!uploadSessions[serverFileName]) {
@@ -393,7 +437,7 @@ app.post("/api/upload/finalize", (req, res) => {
 // 📊 DASHBOARD STATS
 // ==========================================
 
-app.get("/api/dashboard/:email", (req, res) => {
+app.get("/api/dashboard/:email", authenticateToken, (req, res) => {
     const { email } = req.params;
 
     db.query("SELECT id, last_login FROM users WHERE email = ?", [email], (err, users) => {
@@ -427,7 +471,7 @@ app.get("/api/dashboard/:email", (req, res) => {
 // 📋 FILE LISTING
 // ==========================================
 
-app.get("/api/files/:email", (req, res) => {
+app.get("/api/files/:email", authenticateToken, (req, res) => {
     const { email } = req.params;
 
     db.query("SELECT id FROM users WHERE email = ?", [email], (err, users) => {
@@ -462,7 +506,7 @@ app.get("/api/files/:email", (req, res) => {
 });
 
 // ✅ Fetch user's public key (safe to expose)
-app.get("/api/user/publickey/:email", (req, res) => {
+app.get("/api/user/publickey/:email", authenticateToken, (req, res) => {
     const { email } = req.params;
 
     db.query(
@@ -482,7 +526,7 @@ app.get("/api/user/publickey/:email", (req, res) => {
 // ==========================================
 
 // Request OTP for file access
-app.post("/api/file/request-access", (req, res) => {
+app.post("/api/file/request-access", authenticateToken, (req, res) => {
     const { email, fileName } = req.body;
     
     db.query("SELECT id FROM users WHERE email = ?", [email], (err, users) => {
@@ -519,7 +563,7 @@ app.post("/api/file/request-access", (req, res) => {
 // Replace your /api/file/verify-access endpoint with this
 
 // ✅ Verify OTP and Return ENCRYPTED File (Zero-Knowledge)
-app.post("/api/file/verify-access", (req, res) => {
+app.post("/api/file/verify-access", authenticateToken, (req, res) => {
     const { email, fileName, otp } = req.body;
     
     console.log(`🔐 Verify-access request for: ${fileName} by ${email}`);
@@ -623,7 +667,7 @@ app.post("/api/file/verify-access", (req, res) => {
 // 📹 STREAM ENCRYPTED FILE (for client-side decryption)
 // ==========================================
 
-app.post("/api/file/get-encrypted-stream", async (req, res) => {
+app.post("/api/file/get-encrypted-stream", authenticateToken, async (req, res) => {
     const { email, fileName, otp } = req.body;
     
     console.log(`📹 Encrypted stream request for: ${fileName} by ${email}`);
@@ -719,7 +763,7 @@ res.setHeader('X-Encrypted-AES-Key', encryptedAESKey);
 // 🗑️ DELETE FILE
 // ==========================================
 
-app.delete("/api/deleteFile", (req, res) => {
+app.delete("/api/deleteFile", authenticateToken, (req, res) => {
     const { email, fileName } = req.body;
 
     db.query("SELECT id FROM users WHERE email = ?", [email], (err, users) => {
@@ -765,7 +809,7 @@ app.delete("/api/deleteFile", (req, res) => {
 // 📊 ACTIVITY LOGS
 // ==========================================
 
-app.get("/api/activity/all/:email", (req, res) => {
+app.get("/api/activity/all/:email", authenticateToken, (req, res) => {
     const { email } = req.params;
 
     db.query("SELECT id FROM users WHERE email = ?", [email], (err, users) => {

@@ -6,9 +6,17 @@
     <title>Document</title>
 </head>
 <link rel="stylesheet" href="./dashboard.css">
+<link rel="stylesheet" href="./loader.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
 <body>
+      <!-- Loading Overlay -->
+      <div id="pageLoader">
+          <div class="loader-logo">🔒 Secure Vault</div>
+          <div class="loader-spinner"></div>
+          <div class="loader-text">Loading your vault...</div>
+      </div>
+
       <div class="container">
         <div class="sidebar">
             <div class="headerr">
@@ -18,6 +26,10 @@
             <br>
            <div class="sidecontent">
             <nav>
+               
+               <button id="navDashboard" class="same" style="background: rgba(255,255,255,0.15);"> <i class="fa-solid fa-house" ></i>Dashboard</button>
+               <br>
+               <br>
                
                <button id="navMyFiles"  class="same"> <i class="fa-solid fa-folder" id="i1" ></i>My Files</button>
                <br>
@@ -48,7 +60,7 @@
 
              <button class="topleft">
                  <i class="fa-solid fa-bell" style="color: grey; font-size: 20px;"></i>
-                  <h2 style="display: inline;">Welcome, Shubham</h2>
+                  <h2 style="display: inline;">Welcome, <span id="welcomeName">User</span></h2>
              </button>
 
              <div class="topright">
@@ -133,7 +145,7 @@
         </div>
       </div>
       <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-      
+      <script src="./auth.js"></script>
       <script src="./dashboard.js"></script>
 <script>
   const socket = io("http://localhost:5000");

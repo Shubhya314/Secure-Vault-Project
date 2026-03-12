@@ -1,21 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Check Session Storage FIRST, then Local Storage
-const email = sessionStorage.getItem("vault_email") || localStorage.getItem("vault_email");
-const publicKey = sessionStorage.getItem("vault_publicKey") || localStorage.getItem("vault_publicKey");
+    // ✅ Auth check + Navigation (from auth.js)
+    if (!checkAuth()) return;
+    setupNavigation();
+
+    const email = getEmail();
     const tableBody = document.getElementById("logTableBody");
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    if (!email) {
-        window.location.href = "login.html";
-        return;
-    }
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            sessionStorage.clear();
-            window.location.href = "login.html";
-        });
-    }
 
     // Helper: Parse messy User-Agent string
     function parseDevice(userAgent) {
@@ -48,7 +37,8 @@ const publicKey = sessionStorage.getItem("vault_publicKey") || localStorage.getI
 
     async function fetchLogs() {
         try {
-            const res = await fetch(`http://localhost:5000/api/activity/all/${email}`);
+            const res = await authFetch(`http://localhost:5000/api/activity/all/${email}`);
+            if (!res) return;
             const logs = await res.json();
 
             tableBody.innerHTML = "";
@@ -83,8 +73,8 @@ const publicKey = sessionStorage.getItem("vault_publicKey") || localStorage.getI
         }
     }
 
-    // Load logs initially
-    fetchLogs();
+    // Load logs initially, then hide loader
+    fetchLogs().then(() => hidePageLoader());
 
     // Listen for Real-time updates
     const socket = io("http://localhost:5000");
