@@ -42,7 +42,28 @@ async function deriveKeyFromPassword(password, salt) {
     );
 }
 
-// 5. Encrypt the Private Key (So we can store it safely in DB)
+// 5. Generate RSA Key Pair (used for encryption & password reset)
+async function generateKeyPair() {
+    const keyPair = await window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+
+    // Export public key as base64 (stored in DB, safe to share)
+    const publicKeyBuffer = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+    const publicKey = buffToB64(publicKeyBuffer);
+
+    // Return the raw CryptoKey for the private key (will be encrypted before storing)
+    return { publicKey, privateKey: keyPair.privateKey };
+}
+
+// 6. Encrypt the Private Key (So we can store it safely in DB)
 // Returns: "SALT:IV:CIPHERTEXT"
 async function encryptPrivateKey(privateKey, password) {
     // Export Key to raw bytes

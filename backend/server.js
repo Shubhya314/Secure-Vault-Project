@@ -837,73 +837,101 @@ app.get("/api/activity/all/:email", authenticateToken, (req, res) => {
 
 app.post("/api/forgot-password", (req, res) => {
     const { email } = req.body;
-    
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
     db.query("SELECT id FROM users WHERE email = ?", [email], (err, users) => {
-        if (err || !users.length) {
-            return res.status(404).json({ message: "User not found" });
+        if (err) {
+            console.error("❌ Forgot-password DB lookup error:", err);
+            return res.status(500).json({ message: "Database error: " + err.message });
+        }
+        if (!users || !users.length) {
+            return res.status(404).json({ message: "No account found with that email" });
         }
 
         const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        db.query("UPDATE users SET reset_token = ?, reset_expires = DATE_ADD(NOW(), INTERVAL 30 MINUTE) WHERE email = ?",
-            [resetToken, email], (err2) => {
-            
-            if (err2) {
-                return res.status(500).json({ message: "Error" });
+
+        db.query(
+            "UPDATE users SET reset_token = ?, reset_expires = DATE_ADD(NOW(), INTERVAL 30 MINUTE) WHERE email = ?",
+            [resetToken, email],
+            (err2) => {
+                if (err2) {
+                    console.error("❌ Forgot-password UPDATE error:", err2);
+                    return res.status(500).json({ message: "Failed to generate reset code: " + err2.message });
+                }
+
+                console.log(`🔑 Reset code for ${email}: ${resetToken}`);
+
+                transporter.sendMail({
+                    from: "Secure Vault",
+                    to: email,
+                    subject: "🔑 Password Reset Code - Secure Vault",
+                    text: `Your Secure Vault password reset code is: ${resetToken}\n\nValid for 30 minutes.\n\nIf you didn't request this, ignore this email.`
+                }, (mailErr) => {
+                    if (mailErr) console.error("❌ Email send error:", mailErr);
+                    else console.log(`📧 Reset email sent to ${email}`);
+                });
+
+                res.json({ message: "Reset code sent" });
             }
-
-            console.log(`🔑 Reset code for ${email}: ${resetToken}`);
-            
-            transporter.sendMail({
-                from: "Secure Vault",
-                to: email,
-                subject: "Password Reset Code",
-                text: `Your password reset code is: ${resetToken}`
-            });
-
-            res.json({ message: "Reset code sent" });
-        });
+        );
     });
 });
 
 app.post("/api/reset-password", async (req, res) => {
     const { email, token, newPassword, newPublicKey, newEncryptedPrivateKey } = req.body;
-    
-    db.query("SELECT id FROM users WHERE email = ? AND reset_token = ? AND reset_expires > NOW()",
-        [email, token], async (err, users) => {
-        
-        if (err || !users.length) {
-            return res.status(403).json({ message: "Invalid or expired token" });
-        }
+    if (!email || !token || !newPassword) {
+        return res.status(400).json({ message: "Missing required fields" });
+    }
 
-        const userId = users[0].id;
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+    db.query(
+        "SELECT id FROM users WHERE email = ? AND reset_token = ? AND reset_expires > NOW()",
+        [email, token],
+        async (err, users) => {
+            if (err) {
+                console.error("❌ Reset-password token verify error:", err);
+                return res.status(500).json({ message: "Database error: " + err.message });
+            }
+            if (!users || !users.length) {
+                return res.status(403).json({ message: "Invalid or expired reset code" });
+            }
 
-        // Delete all files (zero-knowledge encryption)
-        db.query("SELECT stored_name FROM files WHERE user_id = ?", [userId], (err2, files) => {
-            if (files && files.length > 0) {
-                files.forEach(file => {
-                    const filePath = path.join(UPLOAD_DIR, file.stored_name);
-                    if (fs.existsSync(filePath)) {
-                        fs.unlinkSync(filePath);
-                    }
+            const userId = users[0].id;
+            const passwordHash = await bcrypt.hash(newPassword, 10);
+
+            // Delete all files from disk (zero-knowledge: old files can't be decrypted with new key)
+            db.query("SELECT stored_name FROM files WHERE user_id = ?", [userId], (err2, files) => {
+                if (!err2 && files && files.length > 0) {
+                    files.forEach(file => {
+                        const filePath = path.join(UPLOAD_DIR, file.stored_name);
+                        try {
+                            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                        } catch (fsErr) {
+                            console.error("❌ File delete error:", fsErr);
+                        }
+                    });
+                    console.log(`🗑️ Deleted ${files.length} file(s) for user ${userId} during password reset`);
+                }
+                db.query("DELETE FROM files WHERE user_id = ?", [userId], (delErr) => {
+                    if (delErr) console.error("❌ DB file delete error:", delErr);
                 });
-            }
+            });
 
-            db.query("DELETE FROM files WHERE user_id = ?", [userId]);
-        });
-
-        // Update password and keys
-        db.query("UPDATE users SET passwordHash = ?, publicKey = ?, encryptedPrivateKey = ?, reset_token = NULL WHERE id = ?",
-            [passwordHash, newPublicKey, newEncryptedPrivateKey, userId], (updErr) => {
-            
-            if (updErr) {
-                return res.status(500).json({ message: "Error" });
-            }
-
-            res.json({ message: "Password reset successful" });
-        });
-    });
+            // Update password, new keys, and clear reset token + expiry
+            db.query(
+                "UPDATE users SET passwordHash = ?, publicKey = ?, encryptedPrivateKey = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?",
+                [passwordHash, newPublicKey, newEncryptedPrivateKey, userId],
+                (updErr) => {
+                    if (updErr) {
+                        console.error("❌ Password update error:", updErr);
+                        return res.status(500).json({ message: "Failed to update password: " + updErr.message });
+                    }
+                    logActivity(userId, "Password Reset - All Files Deleted", req);
+                    console.log(`✅ Password reset successful for user ${userId} (${email})`);
+                    res.json({ message: "Password reset successful" });
+                }
+            );
+        }
+    );
 });
 
 // ==========================================
