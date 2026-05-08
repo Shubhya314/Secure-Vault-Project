@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const storage = rememberMeEl && rememberMeEl.checked ? localStorage : sessionStorage;
                 
                 storage.setItem("vault_email", email);
-                if (data.token) storage.setItem("vault_token", data.token); // Backward compatibility
+               
                 storage.setItem("vault_publicKey", data.publicKey);
                 storage.setItem("vault_privateKey", privateKeyString); // Save decrypted key for use in dashboard
                 

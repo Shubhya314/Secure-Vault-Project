@@ -8,10 +8,8 @@
 // 1. TOKEN HELPERS
 // ==========================================
 
-// Get the JWT token from storage
-function getToken() {
-    return sessionStorage.getItem("vault_token") || localStorage.getItem("vault_token");
-}
+
+
 
 // Get the user's email from storage
 function getEmail() {
@@ -26,28 +24,24 @@ function getEmail() {
 // redirects you to the login page.
 
 async function authFetch(url, options = {}) {
-    const token = getToken();
 
-    // Add the Authorization header with the token (fallback support)
-    if (!options.headers) options.headers = {};
-    if (token) {
-        options.headers["Authorization"] = "Bearer " + token;
-    }
     options.credentials = "include";
 
-    // Make the actual request
-    const response = await fetch(url, options);
+    const res = await fetch(url, options);
 
-    // If server says 401 (not logged in) or 403 (token expired)
-    if (response.status === 401 || response.status === 403) {
-        alert("⏱️ Session expired. Please login again.");
+    if (res.status === 401 || res.status === 403) {
+
         sessionStorage.clear();
         localStorage.clear();
+
+        alert("Session expired. Please login again.");
+
         window.location.href = "login.html";
-        return null; // Stop here
+
+        return null;
     }
 
-    return response;
+    return res;
 }
 
 // ==========================================
@@ -57,12 +51,18 @@ async function authFetch(url, options = {}) {
 // If user is not logged in, it redirects to login.
 
 function checkAuth() {
-    const email = getEmail();
+
+    const email =
+        sessionStorage.getItem("vault_email") ||
+        localStorage.getItem("vault_email");
 
     if (!email) {
+
         window.location.href = "login.html";
+
         return false;
     }
+
     return true;
 }
 
@@ -115,7 +115,9 @@ function setupNavigation() {
         logoutBtn.addEventListener("click", async () => {
             if (confirm("Log out?")) {
                 try {
-                    await fetch("http://localhost:5000/api/logout", { method: "POST", credentials: "include" });
+                    await authFetch("http://localhost:5000/api/logout", {
+    method: "POST"
+});
                 } catch (e) {
                     console.log("Logout API unavailable");
                 }
