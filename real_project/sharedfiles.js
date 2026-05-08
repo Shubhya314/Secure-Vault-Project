@@ -7,34 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const tableBody = document.getElementById("sharedTableBody");
   const searchInput = document.getElementById("searchInput");
 
-  function openFilePreviewModal(fileName, blobUrl, ext) {
-    const modal = document.createElement('div');
-    modal.id = 'sharedFilePreviewModal';
-    modal.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.95); z-index: 10000;
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; padding: 20px;`;
-
-    let content = '';
-    if (['mp4', 'mkv', 'webm', 'avi', 'mov'].includes(ext)) {
-      content = `<video controls autoplay style="width: 90%; max-width: 1200px; max-height: 75vh; background: black; border-radius: 10px;"><source src="${blobUrl}" type="video/${ext === 'mkv' ? 'x-matroska' : 'mp4'}"></video>`;
-    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-      content = `<img src="${blobUrl}" style="max-width: 90%; max-height: 75vh; object-fit: contain; border-radius: 10px;">`;
-    } else if (ext === 'pdf' || ext === 'txt') {
-      content = `<iframe src="${blobUrl}" style="width: 90%; max-width: 1200px; height: 80vh; border: none; background: white; border-radius: 10px;"></iframe>`;
-    } else if (['mp3', 'wav', 'ogg'].includes(ext)) {
-      content = `<div style="background: white; padding: 40px; border-radius: 15px; text-align: center;"><h2 style="margin-bottom: 20px; color: #333;">🎵 ${fileName}</h2><audio controls autoplay style="width: 100%; max-width: 500px;"><source src="${blobUrl}" type="audio/${ext === 'mp3' ? 'mpeg' : ext}"></audio></div>`;
-    } else {
-      content = `<div style="background: white; padding: 40px; border-radius: 15px; text-align: center;"><h2 style="margin-bottom: 20px; color: #333;">📄 ${fileName}</h2><p style="color: #666;">Preview not available for this file type.</p></div>`;
-    }
-
-    modal.innerHTML = `<div style="margin-bottom: 15px; color: white; font-size: 18px; font-weight: bold;">${fileName}</div>${content}<div style="margin-top: 20px;"><button id="closeSharedPreviewBtn" style="padding: 12px 30px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">✕ Close</button></div>`;
-    document.body.appendChild(modal);
-
-    document.getElementById("closeSharedPreviewBtn").addEventListener("click", () => modal.remove());
-  }
-
   function base64ToArrayBuffer(base64) {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -94,12 +66,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <td><strong>${file.fileName}</strong></td>
         <td>${formatFileSize(file.fileSize)}</td>
         <td>${file.sharedBy}</td>
-        <td><button onclick="viewSharedFile('${file.fileName.replace(/'/g, "\\'")}')" style="padding:8px 15px;background:#22c55e;color:#fff;border:none;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-eye"></i> View Only</button></td>
+        <td><button onclick="downloadSharedFile('${file.fileName.replace(/'/g, "\\'")}')" style="padding:8px 15px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-download"></i> Download</button></td>
       </tr>`).join("");
     hidePageLoader();
   }
 
-  window.viewSharedFile = async function(fileName) {
+  window.downloadSharedFile = async function(fileName) {
     try {
       const reqOtp = await authFetch("http://localhost:5000/api/file/request-access", {
         method: "POST",
@@ -107,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ email, fileName })
       });
       if (!reqOtp || !reqOtp.ok) throw new Error("Failed to send OTP");
-      const otp = prompt("Enter OTP sent to your email to view shared file:");
+      const otp = prompt("Enter OTP sent to your email to download shared file:");
       if (!otp) return;
 
       const streamRes = await authFetch("http://localhost:5000/api/shared/get-encrypted-stream", {
@@ -123,19 +95,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const aesKey = await decryptAESKey(encryptedAESKey, privateKey);
       const decryptedBuffer = await decryptFileStream(encryptedBuffer, aesKey);
 
-      const ext = fileName.split(".").pop().toLowerCase();
-      let mimeType = "application/octet-stream";
-      if (ext === "pdf") mimeType = "application/pdf";
-      else if (["jpg", "jpeg"].includes(ext)) mimeType = "image/jpeg";
-      else if (ext === "png") mimeType = "image/png";
-      else if (ext === "gif") mimeType = "image/gif";
-      else if (ext === "txt") mimeType = "text/plain";
-      else if (ext === "mp4") mimeType = "video/mp4";
-      else if (ext === "mp3") mimeType = "audio/mpeg";
-
-      const blob = new Blob([decryptedBuffer], { type: mimeType });
+      const blob = new Blob([decryptedBuffer]);
       const url = URL.createObjectURL(blob);
-      openFilePreviewModal(fileName, url, ext);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert("✅ Shared file downloaded successfully!");
     } catch (err) {
       console.error(err);
       alert("❌ " + err.message);

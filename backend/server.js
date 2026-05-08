@@ -299,7 +299,6 @@ app.post("/api/login", (req, res) => {
             res.json({
                 message: "Success",
                 mfaRequired: false,
-                token: token,
                 publicKey: user.publicKey,
                 encryptedPrivateKey: user.encryptedPrivateKey
             });
@@ -345,7 +344,6 @@ app.post("/api/login/verify-mfa", (req, res) => {
 
         res.json({
             message: "Success",
-            token: token,
             publicKey: user.publicKey,
             encryptedPrivateKey: user.encryptedPrivateKey
         });
