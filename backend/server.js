@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import QRCode from "qrcode";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import mysql from "mysql2";
@@ -27,7 +28,11 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 dotenv.config({ path: "./.env" });
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(cookieParser());
 
 // ✅ CRITICAL: Support Large Payloads for Chunks
 app.use(express.json({ limit: "200mb" }));
@@ -72,9 +77,10 @@ const JWT_EXPIRES_IN = "24h"; // Token valid for 24 hours
 // ✅ JWT Middleware — checks if user is logged in
 // Think of this as a "security guard" that checks your ticket before letting you in
 function authenticateToken(req, res, next) {
-    // 1. Read the token from the request header
+    // 1. Read token from secure cookie first, then fallback to Authorization header
     const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1]; // "Bearer <token>" → extract <token>
+    const bearerToken = authHeader && authHeader.split(" ")[1];
+    const token = req.cookies?.vault_token || bearerToken;
 
     // 2. No token? You're not logged in!
     if (!token) {
@@ -283,6 +289,13 @@ app.post("/api/login", (req, res) => {
                 { expiresIn: JWT_EXPIRES_IN }
             );
 
+            res.cookie("vault_token", token, {
+                httpOnly: true,
+                secure: false,
+                sameSite: "lax",
+                maxAge: 24 * 60 * 60 * 1000
+            });
+
             res.json({
                 message: "Success",
                 mfaRequired: false,
@@ -323,6 +336,13 @@ app.post("/api/login/verify-mfa", (req, res) => {
         );
 
         console.log(`✅ User ${email} verified MFA and logged in`);
+        res.cookie("vault_token", token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax",
+            maxAge: 24 * 60 * 60 * 1000
+        });
+
         res.json({
             message: "Success",
             token: token,
@@ -803,6 +823,152 @@ app.delete("/api/deleteFile", authenticateToken, (req, res) => {
             });
         });
     });
+});
+
+// ==========================================
+// 🤝 FILE SHARING
+// ==========================================
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS file_shares (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        file_id INT NOT NULL,
+        owner_user_id INT NOT NULL,
+        recipient_user_id INT NOT NULL,
+        encrypted_aes_key_for_recipient LONGTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_file_recipient (file_id, recipient_user_id)
+    )
+`);
+db.query("ALTER TABLE file_shares ADD COLUMN expires_at DATETIME NULL", (err) => {
+    if (err && !String(err.message || '').includes('Duplicate column name')) {
+        console.error("file_shares expires_at migration error:", err.message);
+    }
+});
+
+app.post("/api/share/request", authenticateToken, (req, res) => {
+    const { email, fileName, recipientEmail, encryptedAESKeyForRecipient, expiresInMinutes } = req.body;
+
+    if (!email || !fileName || !recipientEmail || !encryptedAESKeyForRecipient) {
+        return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const ttlMinutes = Math.min(Math.max(parseInt(expiresInMinutes || 60, 10), 5), 10080); // 5 min to 7 days
+
+    db.query("SELECT id FROM users WHERE email = ?", [email], (ownerErr, owners) => {
+        if (ownerErr || !owners.length) return res.status(404).json({ message: "Owner not found" });
+        const ownerId = owners[0].id;
+
+        db.query("SELECT id FROM users WHERE email = ?", [recipientEmail], (recErr, recipients) => {
+            if (recErr || !recipients.length) return res.status(404).json({ message: "Recipient not found" });
+            const recipientId = recipients[0].id;
+
+            if (ownerId === recipientId) return res.status(400).json({ message: "You cannot share with yourself" });
+
+            db.query("SELECT id FROM files WHERE user_id = ? AND fileName = ?", [ownerId, fileName], (fileErr, files) => {
+                if (fileErr || !files.length) return res.status(404).json({ message: "File not found" });
+                const fileId = files[0].id;
+
+                db.query(
+                    `INSERT INTO file_shares (file_id, owner_user_id, recipient_user_id, encrypted_aes_key_for_recipient, expires_at)
+                     VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))
+                     ON DUPLICATE KEY UPDATE encrypted_aes_key_for_recipient = VALUES(encrypted_aes_key_for_recipient), created_at = NOW(), expires_at = VALUES(expires_at)`,
+                    [fileId, ownerId, recipientId, encryptedAESKeyForRecipient, ttlMinutes],
+                    (insErr) => {
+                        if (insErr) return res.status(500).json({ message: "Failed to share file" });
+                        logActivity(ownerId, `Shared file: ${fileName} with ${recipientEmail}`, req);
+                        res.json({ message: "File shared successfully" });
+                    }
+                );
+            });
+        });
+    });
+});
+
+app.get("/api/user/publickey/by-email/:email", authenticateToken, (req, res) => {
+    const { email } = req.params;
+    db.query("SELECT publicKey FROM users WHERE email = ?", [email], (err, rows) => {
+        if (err || !rows.length) return res.status(404).json({ message: "Recipient not found" });
+        res.json({ publicKey: rows[0].publicKey });
+    });
+});
+
+app.get("/api/shares/received/:email", authenticateToken, (req, res) => {
+    const { email } = req.params;
+    db.query("SELECT id FROM users WHERE email = ?", [email], (userErr, users) => {
+        if (userErr || !users.length) return res.status(404).json({ message: "User not found" });
+        const userId = users[0].id;
+
+        db.query("DELETE FROM file_shares WHERE recipient_user_id = ? AND expires_at IS NOT NULL AND expires_at <= NOW()", [userId]);
+
+        db.query(
+            `SELECT f.fileName, f.fileSize, f.stored_name, f.created_at AS encryptedOn,
+                    u.email AS sharedBy,
+                    fs.encrypted_aes_key_for_recipient AS encryptedAESKey,
+                    fs.expires_at AS expiresAt
+             FROM file_shares fs
+             JOIN files f ON f.id = fs.file_id
+             JOIN users u ON u.id = fs.owner_user_id
+             WHERE fs.recipient_user_id = ? AND (fs.expires_at IS NULL OR fs.expires_at > NOW())
+             ORDER BY fs.created_at DESC`,
+            [userId],
+            (err2, rows) => {
+                if (err2) return res.status(500).json({ message: "Error fetching shared files" });
+                res.json(rows);
+            }
+        );
+    });
+});
+
+app.post("/api/shared/get-encrypted-stream", authenticateToken, async (req, res) => {
+    const { email, fileName, otp } = req.body;
+    try {
+        const recipients = await new Promise((resolve, reject) => {
+            db.query("SELECT id FROM users WHERE email = ?", [email], (err, rows) => err ? reject(err) : resolve(rows));
+        });
+        if (!recipients || !recipients.length) return res.status(404).json({ message: "User not found" });
+        const recipientId = recipients[0].id;
+
+        if (!otp) return res.status(403).json({ message: "OTP required" });
+        const otpCheck = await new Promise((resolve, reject) => {
+            db.query("SELECT id FROM users WHERE id = ? AND file_otp = ? AND file_otp_expires > NOW()",
+                [recipientId, otp], (err, rows) => err ? reject(err) : resolve(rows));
+        });
+        if (!otpCheck || !otpCheck.length) return res.status(403).json({ message: "Invalid or expired OTP" });
+        db.query("UPDATE users SET file_otp = NULL WHERE id = ?", [recipientId]);
+
+        const rows = await new Promise((resolve, reject) => {
+            db.query(
+                `SELECT f.fileName, f.fileSize, f.stored_name, fs.encrypted_aes_key_for_recipient
+                 FROM file_shares fs
+                 JOIN files f ON f.id = fs.file_id
+                 WHERE fs.recipient_user_id = ? AND f.fileName = ? AND (fs.expires_at IS NULL OR fs.expires_at > NOW())`,
+                [recipientId, fileName],
+                (err, results) => err ? reject(err) : resolve(results)
+            );
+        });
+        if (!rows || !rows.length) return res.status(404).json({ message: "Shared file not found" });
+
+        const fileRecord = rows[0];
+        const encryptedFilePath = path.join(UPLOAD_DIR, fileRecord.stored_name);
+        if (!fs.existsSync(encryptedFilePath)) return res.status(404).json({ message: "File not found on disk" });
+
+        logActivity(recipientId, `Accessed shared file: ${fileName}`, req);
+        res.setHeader("Access-Control-Expose-Headers", "X-Encrypted-AES-Key, X-File-Name, X-File-Size");
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("X-File-Name", encodeURIComponent(fileRecord.fileName));
+        res.setHeader("X-File-Size", fileRecord.fileSize);
+        res.setHeader("X-Encrypted-AES-Key", fileRecord.encrypted_aes_key_for_recipient.replace(/\r?\n|\r/g, '').trim());
+        fs.createReadStream(encryptedFilePath).pipe(res);
+    } catch (err) {
+        console.error("Shared stream error:", err);
+        res.status(500).json({ message: "Error: " + err.message });
+    }
+});
+
+app.post("/api/logout", (req, res) => {
+    res.clearCookie("vault_token");
+    res.json({ message: "Logged out" });
 });
 
 // ==========================================

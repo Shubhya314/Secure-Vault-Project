@@ -316,6 +316,10 @@ document.addEventListener("DOMContentLoaded", () => {
                                 style="padding: 8px 15px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
                             <i class="fa-solid fa-trash"></i> Delete
                         </button>
+                        <button onclick="shareFilePrompt('${escapeFileName(fileName)}')" 
+                                style="padding: 8px 15px; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                            <i class="fa-solid fa-share-nodes"></i> Share
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -555,6 +559,66 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ Error: " + err.message);
         }
     }
+
+    window.shareFilePrompt = async function(fileName) {
+        try {
+            const recipientEmail = prompt(`Enter recipient email to share "${fileName}"`);
+            if (!recipientEmail || !recipientEmail.trim()) return;
+            const ttlInput = prompt("How long should access remain active? Enter minutes (5 to 10080):", "60");
+            if (!ttlInput) return;
+            const expiresInMinutes = Math.min(Math.max(parseInt(ttlInput, 10) || 60, 5), 10080);
+
+            const publicKeyRes = await authFetch(`http://localhost:5000/api/user/publickey/by-email/${encodeURIComponent(recipientEmail.trim())}`);
+            if (!publicKeyRes || !publicKeyRes.ok) throw new Error("Recipient public key not found");
+            const { publicKey } = await publicKeyRes.json();
+
+            const filesRes = await authFetch(`http://localhost:5000/api/files/${email}`);
+            if (!filesRes || !filesRes.ok) throw new Error("Failed to fetch file metadata");
+            const files = await filesRes.json();
+            const file = files.find(f => f.fileName === fileName);
+            if (!file) throw new Error("File metadata not found");
+
+            const ownerPrivateKey = await importPrivateKey(privateKeyBase64);
+            const aesKey = await decryptAESKey(file.encryptedAESKey, ownerPrivateKey);
+            const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+
+            const recipientPublicKey = await crypto.subtle.importKey(
+                "spki",
+                base64ToArrayBuffer(publicKey),
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                true,
+                ["encrypt"]
+            );
+
+            const encryptedForRecipient = await crypto.subtle.encrypt(
+                { name: "RSA-OAEP" },
+                recipientPublicKey,
+                rawAesKey
+            );
+
+            const shareRes = await authFetch("http://localhost:5000/api/share/request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    fileName,
+                    recipientEmail: recipientEmail.trim(),
+                    encryptedAESKeyForRecipient: arrayBufferToBase64(encryptedForRecipient),
+                    expiresInMinutes
+                })
+            });
+
+            if (!shareRes || !shareRes.ok) {
+                const errData = shareRes ? await shareRes.json() : {};
+                throw new Error(errData.message || "Sharing failed");
+            }
+
+            alert("✅ File shared successfully!");
+        } catch (err) {
+            console.error(err);
+            alert("❌ Share failed: " + err.message);
+        }
+    };
 
     // Search
     if (searchInput) {

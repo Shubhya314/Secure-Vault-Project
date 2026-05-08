@@ -28,11 +28,12 @@ function getEmail() {
 async function authFetch(url, options = {}) {
     const token = getToken();
 
-    // Add the Authorization header with the token
+    // Add the Authorization header with the token (fallback support)
     if (!options.headers) options.headers = {};
     if (token) {
         options.headers["Authorization"] = "Bearer " + token;
     }
+    options.credentials = "include";
 
     // Make the actual request
     const response = await fetch(url, options);
@@ -56,10 +57,9 @@ async function authFetch(url, options = {}) {
 // If user is not logged in, it redirects to login.
 
 function checkAuth() {
-    const token = getToken();
     const email = getEmail();
 
-    if (!token || !email) {
+    if (!email) {
         window.location.href = "login.html";
         return false;
     }
@@ -97,6 +97,7 @@ function setupNavigation() {
     const navMap = {
         "navDashboard": "dashboard.html",
         "navMyFiles": "Myfiles.html",
+        "navSharedFiles": "sharedfiles.html",
         "navEncrypt": "dashencrypt.html",
         "navActivity": "activitylog.html",
         "navSettings": "settings.html",
@@ -111,8 +112,13 @@ function setupNavigation() {
     // Logout button
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
+        logoutBtn.addEventListener("click", async () => {
             if (confirm("Log out?")) {
+                try {
+                    await fetch("http://localhost:5000/api/logout", { method: "POST", credentials: "include" });
+                } catch (e) {
+                    console.log("Logout API unavailable");
+                }
                 sessionStorage.clear();
                 localStorage.clear();
                 window.location.href = "login.html";
