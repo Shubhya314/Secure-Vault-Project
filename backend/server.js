@@ -292,7 +292,7 @@ app.post("/api/login", (req, res) => {
             res.cookie("vault_token", token, {
                 httpOnly: true,
                 secure: false,
-                sameSite: "lax",
+                sameSite: "strict",
                 maxAge: 24 * 60 * 60 * 1000
             });
 
@@ -338,7 +338,7 @@ app.post("/api/login/verify-mfa", (req, res) => {
         res.cookie("vault_token", token, {
             httpOnly: true,
             secure: false,
-            sameSite: "lax",
+            sameSite: "strict",
             maxAge: 24 * 60 * 60 * 1000
         });
 
