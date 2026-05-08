@@ -564,9 +564,6 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const recipientEmail = prompt(`Enter recipient email to share "${fileName}"`);
             if (!recipientEmail || !recipientEmail.trim()) return;
-            const ttlInput = prompt("How long should access remain active? Enter minutes (5 to 10080):", "60");
-            if (!ttlInput) return;
-            const expiresInMinutes = Math.min(Math.max(parseInt(ttlInput, 10) || 60, 5), 10080);
 
             const publicKeyRes = await authFetch(`http://localhost:5000/api/user/publickey/by-email/${encodeURIComponent(recipientEmail.trim())}`);
             if (!publicKeyRes || !publicKeyRes.ok) throw new Error("Recipient public key not found");
@@ -603,8 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     email,
                     fileName,
                     recipientEmail: recipientEmail.trim(),
-                    encryptedAESKeyForRecipient: arrayBufferToBase64(encryptedForRecipient),
-                    expiresInMinutes
+                    encryptedAESKeyForRecipient: arrayBufferToBase64(encryptedForRecipient)
                 })
             });
 

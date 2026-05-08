@@ -299,7 +299,6 @@ app.post("/api/login", (req, res) => {
             res.json({
                 message: "Success",
                 mfaRequired: false,
-                token: token,
                 publicKey: user.publicKey,
                 encryptedPrivateKey: user.encryptedPrivateKey
             });
@@ -345,7 +344,6 @@ app.post("/api/login/verify-mfa", (req, res) => {
 
         res.json({
             message: "Success",
-            token: token,
             publicKey: user.publicKey,
             encryptedPrivateKey: user.encryptedPrivateKey
         });
@@ -840,20 +838,13 @@ db.query(`
         UNIQUE KEY unique_file_recipient (file_id, recipient_user_id)
     )
 `);
-db.query("ALTER TABLE file_shares ADD COLUMN expires_at DATETIME NULL", (err) => {
-    if (err && !String(err.message || '').includes('Duplicate column name')) {
-        console.error("file_shares expires_at migration error:", err.message);
-    }
-});
 
 app.post("/api/share/request", authenticateToken, (req, res) => {
-    const { email, fileName, recipientEmail, encryptedAESKeyForRecipient, expiresInMinutes } = req.body;
+    const { email, fileName, recipientEmail, encryptedAESKeyForRecipient } = req.body;
 
     if (!email || !fileName || !recipientEmail || !encryptedAESKeyForRecipient) {
         return res.status(400).json({ message: "Missing required fields" });
     }
-
-    const ttlMinutes = Math.min(Math.max(parseInt(expiresInMinutes || 60, 10), 5), 10080); // 5 min to 7 days
 
     db.query("SELECT id FROM users WHERE email = ?", [email], (ownerErr, owners) => {
         if (ownerErr || !owners.length) return res.status(404).json({ message: "Owner not found" });
@@ -870,10 +861,10 @@ app.post("/api/share/request", authenticateToken, (req, res) => {
                 const fileId = files[0].id;
 
                 db.query(
-                    `INSERT INTO file_shares (file_id, owner_user_id, recipient_user_id, encrypted_aes_key_for_recipient, expires_at)
-                     VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))
-                     ON DUPLICATE KEY UPDATE encrypted_aes_key_for_recipient = VALUES(encrypted_aes_key_for_recipient), created_at = NOW(), expires_at = VALUES(expires_at)`,
-                    [fileId, ownerId, recipientId, encryptedAESKeyForRecipient, ttlMinutes],
+                    `INSERT INTO file_shares (file_id, owner_user_id, recipient_user_id, encrypted_aes_key_for_recipient)
+                     VALUES (?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE encrypted_aes_key_for_recipient = VALUES(encrypted_aes_key_for_recipient), created_at = NOW()`,
+                    [fileId, ownerId, recipientId, encryptedAESKeyForRecipient],
                     (insErr) => {
                         if (insErr) return res.status(500).json({ message: "Failed to share file" });
                         logActivity(ownerId, `Shared file: ${fileName} with ${recipientEmail}`, req);
@@ -899,17 +890,14 @@ app.get("/api/shares/received/:email", authenticateToken, (req, res) => {
         if (userErr || !users.length) return res.status(404).json({ message: "User not found" });
         const userId = users[0].id;
 
-        db.query("DELETE FROM file_shares WHERE recipient_user_id = ? AND expires_at IS NOT NULL AND expires_at <= NOW()", [userId]);
-
         db.query(
             `SELECT f.fileName, f.fileSize, f.stored_name, f.created_at AS encryptedOn,
                     u.email AS sharedBy,
-                    fs.encrypted_aes_key_for_recipient AS encryptedAESKey,
-                    fs.expires_at AS expiresAt
+                    fs.encrypted_aes_key_for_recipient AS encryptedAESKey
              FROM file_shares fs
              JOIN files f ON f.id = fs.file_id
              JOIN users u ON u.id = fs.owner_user_id
-             WHERE fs.recipient_user_id = ? AND (fs.expires_at IS NULL OR fs.expires_at > NOW())
+             WHERE fs.recipient_user_id = ?
              ORDER BY fs.created_at DESC`,
             [userId],
             (err2, rows) => {
@@ -942,7 +930,7 @@ app.post("/api/shared/get-encrypted-stream", authenticateToken, async (req, res)
                 `SELECT f.fileName, f.fileSize, f.stored_name, fs.encrypted_aes_key_for_recipient
                  FROM file_shares fs
                  JOIN files f ON f.id = fs.file_id
-                 WHERE fs.recipient_user_id = ? AND f.fileName = ? AND (fs.expires_at IS NULL OR fs.expires_at > NOW())`,
+                 WHERE fs.recipient_user_id = ? AND f.fileName = ?`,
                 [recipientId, fileName],
                 (err, results) => err ? reject(err) : resolve(results)
             );
