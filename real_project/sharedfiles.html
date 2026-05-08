@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared Files - Secure Vault</title>
+  <link rel="stylesheet" href="./Myfiles.css">
+  <link rel="stylesheet" href="./loader.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+</head>
+<body>
+<div id="pageLoader"><div class="loader-logo">🔒 Secure Vault</div><div class="loader-spinner"></div><div class="loader-text">Loading shared files...</div></div>
+<div class="container">
+  <div class="sidebar">
+    <div class="headerr"><img src="./new image1.png" alt="secure vault photo" width="90" height="90" style="box-sizing: content-box; margin-top: 40px;"><h2 style="font-size: 30px;">Secure Vault</h2></div>
+    <div class="sidecontent"><nav>
+      <button id="navMyFiles" class="same"><i class="fa-solid fa-folder"></i>My Files</button><br><br>
+      <button id="navSharedFiles" class="same" style="background: rgba(255,255,255,0.15);"><i class="fa-solid fa-share-nodes"></i>Shared Files</button><br><br>
+      <button id="navEncrypt" class="same"><i class="fa-solid fa-lock"></i>Encrypt Data</button><br><br>
+      <button id="navActivity" class="same"><i class="fa-solid fa-chart-line"></i>Activity Logs</button><br><br>
+      <button id="navSettings" class="same"><i class="fa-solid fa-gear"></i>Settings</button><br><br>
+      <button id="logoutBtn" class="same"><i class="fa-solid fa-right-from-bracket"></i>Logout</button><br><br>
+      <button id="backToDashboard" class="same"><i class="fa-solid fa-arrow-left"></i>Dashboard</button>
+    </nav></div>
+  </div>
+  <div class="main">
+    <div class="top">
+      <h1><i class="fa-solid fa-share-nodes"></i> Shared With Me</h1>
+      <p>Files shared by other users.</p>
+      <input id="searchInput" type="search" placeholder="Search..">
+    </div>
+    <div class="down">
+      <table class="files-table">
+        <thead><tr><th>Name</th><th>Size</th><th>Shared By</th><th>Action</th></tr></thead>
+        <tbody id="sharedTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="./auth.js"></script>
+<script src="./sharedfiles.js"></script>
+</body>
+</html>

@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch("http://localhost:5000/api/login", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    credentials: "include",
                     body: JSON.stringify({ email, password })
                 });
 
@@ -58,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const mfaRes = await fetch("http://localhost:5000/api/login/verify-mfa", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
+                        credentials: "include",
                         body: JSON.stringify({ email, token })
                     });
 
@@ -87,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const storage = rememberMeEl && rememberMeEl.checked ? localStorage : sessionStorage;
                 
                 storage.setItem("vault_email", email);
-                storage.setItem("vault_token", data.token); // ✅ Save JWT token
+                if (data.token) storage.setItem("vault_token", data.token); // Backward compatibility
                 storage.setItem("vault_publicKey", data.publicKey);
                 storage.setItem("vault_privateKey", privateKeyString); // Save decrypted key for use in dashboard
                 
